@@ -1,4 +1,4 @@
-export const config = { api: { bodyParser: false } };
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -9,10 +9,7 @@ async function readBody(req) {
   });
 }
 
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-export default async function handler(req, res) {
-  // CORS headers — allow your GitHub Pages domain
+module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-assembly-key');
@@ -24,17 +21,14 @@ export default async function handler(req, res) {
   if (!assemblyKey) return res.status(400).json({ error: 'Missing AssemblyAI key' });
 
   try {
-    // 1. Read audio buffer from request body
     const audioBuffer = await readBody(req);
     if (!audioBuffer.length) return res.status(400).json({ error: 'Empty audio' });
 
-    // 2. Upload to AssemblyAI
     const uploadRes = await fetch('https://api.assemblyai.com/v2/upload', {
       method: 'POST',
       headers: {
         'authorization': assemblyKey,
-        'content-type': 'application/octet-stream',
-        'transfer-encoding': 'chunked'
+        'content-type': 'application/octet-stream'
       },
       body: audioBuffer
     });
@@ -46,46 +40,35 @@ export default async function handler(req, res) {
 
     const { upload_url } = await uploadRes.json();
 
-    // 3. Submit transcription job
     const transcribeRes = await fetch('https://api.assemblyai.com/v2/transcript', {
       method: 'POST',
       headers: {
         'authorization': assemblyKey,
         'content-type': 'application/json'
       },
-      body: JSON.stringify({
-        audio_url: upload_url,
-        language_code: 'en'
-      })
+      body: JSON.stringify({ audio_url: upload_url, language_code: 'en' })
     });
 
     if (!transcribeRes.ok) {
       const err = await transcribeRes.text();
-      return res.status(502).json({ error: 'Transcription submit failed: ' + err });
+      return res.status(502).json({ error: 'Job submit failed: ' + err });
     }
 
     const { id } = await transcribeRes.json();
 
-    // 4. Poll until complete (server-side, no CORS issue)
     for (let i = 0; i < 60; i++) {
       await sleep(3000);
-      const pollRes = await fetch(`https://api.assemblyai.com/v2/transcript/${id}`, {
+      const pollRes = await fetch('https://api.assemblyai.com/v2/transcript/' + id, {
         headers: { 'authorization': assemblyKey }
       });
       const data = await pollRes.json();
-
-      if (data.status === 'completed') {
-        return res.status(200).json({ transcript: data.text });
-      }
-      if (data.status === 'error') {
-        return res.status(502).json({ error: 'AssemblyAI error: ' + data.error });
-      }
-      // still processing — keep polling
+      if (data.status === 'completed') return res.status(200).json({ transcript: data.text });
+      if (data.status === 'error') return res.status(502).json({ error: 'AssemblyAI: ' + data.error });
     }
 
-    return res.status(504).json({ error: 'Transcription timed out server-side' });
+    return res.status(504).json({ error: 'Timed out waiting for transcript' });
 
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
-}
+};
