@@ -4,12 +4,6 @@ const REQUIRED_FIELDS = [
   'better_version', 'top_1pct_version'
 ];
 
-const REQUIRED_FIELDS = [
-  'confidence_score', 'clarity_score', 'filler_count', 'filler_words',
-  'pace_wpm', 'pace_label', 'structural_issue', 'fix_1', 'fix_2',
-  'better_version', 'top_1pct_version'
-];
-
 const GENERIC_PHRASES = [
   'great job', 'well done', 'good effort', 'nice attempt',
   'you did well', 'overall good', 'keep it up', 'you tried',
@@ -41,6 +35,33 @@ Rules:
 - The better_version must sound like the user, not like a corporate robot. Preserve their voice.
 - If something they said was genuinely good, say so in fix_1 or fix_2 and build on it rather than ignoring it.`;
 
+function buildUserPrompt(transcript, scenario, wpm, duration, isRetry = false) {
+  const retryNote = isRetry
+    ? '\n\nNOTE: Your previous response failed schema validation. Return ONLY raw JSON with all required fields.\n'
+    : '';
+  return `${retryNote}Scenario: ${scenario.context}
+Prompt given: "${scenario.prompt}"
+Transcript: "${transcript}"
+Pace: ~${wpm} wpm. Duration: ~${duration}s.
+
+Return the JSON object now.`;
+}
+
+function clamp(val, min = 0, max = 10) {
+  const n = parseFloat(val);
+  if (isNaN(n)) return null;
+  return Math.round(Math.max(min, Math.min(max, n)) * 10) / 10;
+}
+
+function validateAndNormalize(raw) {
+  let parsed;
+  try {
+    const clean = raw.replace(/```json|```/g, '').trim();
+    parsed = JSON.parse(clean);
+  } catch {
+    return { valid: false, error: 'JSON parse failed' };
+  }
+
   for (const field of REQUIRED_FIELDS) {
     if (parsed[field] === undefined || parsed[field] === null || parsed[field] === '') {
       return { valid: false, error: `Missing field: ${field}` };
@@ -57,7 +78,6 @@ Rules:
     return { valid: false, error: 'Invalid pace_label' };
   }
 
-  // Generic feedback filter
   const combinedText = [parsed.fix_1, parsed.fix_2, parsed.better_version].join(' ').toLowerCase();
   const isGeneric = GENERIC_PHRASES.some(phrase => combinedText.includes(phrase));
 
@@ -114,7 +134,6 @@ module.exports = async function handler(req, res) {
 
     if (result.valid) return res.status(200).json(result.data);
 
-    // One retry
     const raw2 = await callClaude(transcript, scenario, wpm, duration, true);
     const result2 = validateAndNormalize(raw2);
 
