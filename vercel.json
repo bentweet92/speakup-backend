@@ -1,1 +1,8 @@
-{"version": 2}
+{
+  "routes": [
+    { "src": "/api/transcribe", "dest": "/api/transcribe.js" },
+    { "src": "/api/status", "dest": "/api/status.js" },
+    { "src": "/api/feedback", "dest": "/api/feedback.js" },
+    { "src": "/api/generate-prompt", "dest": "/api/generate-prompt.js" }
+  ]
+}
