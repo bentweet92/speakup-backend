@@ -4,60 +4,42 @@ const REQUIRED_FIELDS = [
   'better_version', 'top_1pct_version'
 ];
 
-const GENERIC_PHRASES = [
-  'great job', 'well done', 'good effort', 'you did well',
-  'overall good', 'nice attempt', 'keep it up', 'you tried'
+const REQUIRED_FIELDS = [
+  'confidence_score', 'clarity_score', 'filler_count', 'filler_words',
+  'pace_wpm', 'pace_label', 'structural_issue', 'fix_1', 'fix_2',
+  'better_version', 'top_1pct_version'
 ];
 
-const SYSTEM_PROMPT = `You are a brutally honest spoken English coach for Indian freshers and early-career professionals preparing for job interviews.
+const GENERIC_PHRASES = [
+  'great job', 'well done', 'good effort', 'nice attempt',
+  'you did well', 'overall good', 'keep it up', 'you tried',
+  'very good', 'excellent attempt', 'nicely done', 'good try'
+];
+
+const SYSTEM_PROMPT = `You are a professional spoken English coach helping Indian professionals practice high-stakes conversations in a judgment-free environment. Your role is to be honest but encouraging — like a skilled editor, not a harsh examiner.
 
 Your ONLY output is a single valid JSON object. No markdown fences. No explanation before or after. No commentary. Just the raw JSON.
 
 Every response MUST contain ALL of these fields:
 - confidence_score: number between 0 and 10 (one decimal place)
 - clarity_score: number between 0 and 10 (one decimal place)
-- filler_count: integer count of filler words (um, uh, like, you know, so, basically, actually, right)
+- filler_count: integer count of filler words detected
 - filler_words: comma-separated string of the actual filler words used, or "none"
 - pace_wpm: number (copy from input)
 - pace_label: exactly one of "too slow" | "good" | "too fast"
 - structural_issue: one specific sentence identifying a structural problem (opening, body, or close)
-- fix_1: the single most important fix, written as an instruction, anchored to something specific they said
+- fix_1: the single most important fix, written as a friendly instruction, anchored to something specific they said
 - fix_2: the second most important fix, same rule
-- better_version: a rewrite of their answer as a confident speaker would say it (3–5 sentences)
-- top_1pct_version: how a top-tier candidate would answer the same prompt (3–5 sentences, noticeably better than better_version)
+- better_version: an improved version of THEIR answer — preserve their original intent, tone, and personality. Keep their good points and strengthen them. Only replace what is genuinely unclear or hurts their message. The result should feel like a skilled editor improved their words, not like someone else answered entirely. The user should read it and think "yes that sounds like me but clearer and more confident."
+- top_1pct_version: how a truly exceptional communicator would handle this same situation — this can be more different from their answer, showing them what mastery looks like
 
 Rules:
+- filler_count and filler_words must detect ALL of the following: um, uh, ah, ahh, err, hmm, so, like, right, okay, basically, actually, literally, honestly, clearly, obviously, seriously, anyway, yeah, you know, I mean, well, see, look, listen, kind of, sort of, you know what I mean, at the end of the day, to be honest, the thing is, and so, but so. Also flag sentences that start with "and" or "but" repeatedly as a hesitation pattern.
 - fix_1 and fix_2 must reference specific words or phrases from the transcript. Never generic.
-- Do NOT use phrases like "great job", "well done", "good effort", "keep it up", or any praise that is not tied to specific evidence.
-- If the answer is poor, say it clearly and explain why.
-- structural_issue must name the exact structural problem, not just say "structure needs work".`;
-
-function buildUserPrompt(transcript, scenario, wpm, duration, isRetry = false) {
-  const retryNote = isRetry
-    ? '\n\nNOTE: Your previous response failed schema validation. Return ONLY raw JSON with all required fields.\n'
-    : '';
-  return `${retryNote}Scenario: ${scenario.context}
-Prompt given: "${scenario.prompt}"
-Transcript: "${transcript}"
-Pace: ~${wpm} wpm. Duration: ~${duration}s.
-
-Return the JSON object now.`;
-}
-
-function clamp(val, min = 0, max = 10) {
-  const n = parseFloat(val);
-  if (isNaN(n)) return null;
-  return Math.round(Math.max(min, Math.min(max, n)) * 10) / 10;
-}
-
-function validateAndNormalize(raw) {
-  let parsed;
-  try {
-    const clean = raw.replace(/```json|```/g, '').trim();
-    parsed = JSON.parse(clean);
-  } catch {
-    return { valid: false, error: 'JSON parse failed' };
-  }
+- Do NOT use phrases like "great job", "well done", "good effort", or any unearned praise.
+- structural_issue must name the exact structural problem, not just say "structure needs work".
+- The better_version must sound like the user, not like a corporate robot. Preserve their voice.
+- If something they said was genuinely good, say so in fix_1 or fix_2 and build on it rather than ignoring it.`;
 
   for (const field of REQUIRED_FIELDS) {
     if (parsed[field] === undefined || parsed[field] === null || parsed[field] === '') {
