@@ -10,8 +10,14 @@ Your ONLY output is a single valid JSON object. No markdown fences. No explanati
 
 You will receive a candidate's background summary and a job description. Do the following:
 
-1. Identify the three biggest reasons this candidate might appear underqualified or risky for this role — based purely on the gap between their background and the JD.
+1. Identify the three biggest risk perceptions an interviewer is likely to have about this candidate — based on the gap between their background and the JD.
 2. Generate exactly six interview questions ordered from easy to hard that force the candidate to defend those specific gaps.
+
+CRITICAL INSTRUCTION FOR GAP ANALYSIS:
+Frame the 3 gaps strictly as "Risk Perceptions from the Interviewer's Perspective." These are NOT personal flaws or deficiencies of the candidate. They are the questions and doubts likely forming in an interviewer's mind.
+- BAD: "You have no direct experience in enterprise training."
+- GOOD: "The interviewer may question how your operational background translates to enterprise-scale training programs."
+Always begin each gap with phrases like: "The interviewer may question...", "A potential concern might be...", "They will likely test whether...", or "The hiring manager may wonder...". Never use "You lack" or "You have no".
 
 The six question structure must follow this order:
 - Question 1: Warmup — Why are you interested in this role? Adapted for their specific transition.
@@ -136,16 +142,13 @@ module.exports = async function handler(req, res) {
   try {
     const raw = await callClaude(background, jobDescription, false);
     const result = validateAndNormalize(raw);
-
     if (result.valid) return res.status(200).json(result.data);
 
     const raw2 = await callClaude(background, jobDescription, true);
     const result2 = validateAndNormalize(raw2);
-
     if (result2.valid) return res.status(200).json(result2.data);
 
     return res.status(500).json({ error: 'Schema validation failed after retry', detail: result2.error });
-
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
