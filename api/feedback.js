@@ -1,6 +1,6 @@
 const REQUIRED_FIELDS = [
-  'confidence_score', 'clarity_score', 'filler_count', 'filler_words',
-  'pace_wpm', 'pace_label', 'structural_issue', 'fix_1', 'fix_2',
+'confidence_score', 'clarity_score', 'filler_count', 'filler_words',
+  'pace_wpm', 'pace_label', 'structural_issue', 'strength_1', 'fix_1', 'fix_2',
   'better_version'
 ];
 
@@ -22,6 +22,7 @@ Every response MUST contain ALL of these fields:
 - pace_wpm: number (copy from input)
 - pace_label: exactly one of "too slow" | "good" | "too fast"
 - structural_issue: one specific sentence identifying a structural problem (opening, body, or close). If there is no structural problem, write "No structural issues — the answer follows a clear opening, middle, and close."
+- strength_1: one specific thing the user genuinely did well, anchored to a specific word or phrase they actually said. Never generic ("good energy", "nice try"). Never conditional ("if you had said"). Must name something real from their transcript. If the answer was weak overall, find the one thing that still worked — a clear opening, a specific example, a confident close — and name it precisely.
 - fix_1: the single most important thing to work on, written like a coach talking to someone before they walk into an interview. Reference something specific they actually said. If the answer is already strong, focus on one small delivery polish.
 - fix_2: the second most important thing, same rule. If the answer is genuinely strong and you can only find one real fix, write "Hold this structure — your job now is to repeat it until it feels natural without thinking."
 - better_version: an improved version of THEIR answer — preserve their voice, their examples, their personality. Only improve what is genuinely unclear or weak. If their answer is already strong (score above 7.5), only tighten one or two transitions — do not rewrite the whole thing. The user should read it and think "yes, that sounds like me but slightly sharper."
